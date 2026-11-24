@@ -1,0 +1,103 @@
+:host {
+  display: block;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  overflow-y: auto;
+  padding: 18px;
+}
+
+h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.cat {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.bar {
+  margin: 9px 0;
+}
+
+.lbl {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
+.track {
+  height: 8px;
+  background: #eef0f5;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 99px;
+  /* Grows from 0 to its bound width each time a new decision renders. */
+  animation: grow 0.5s ease-out;
+}
+
+@keyframes grow {
+  from {
+    width: 0;
+  }
+}
+
+.win {
+  font-weight: 700;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13.5px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.stat .dot {
+  margin-right: 6px;
+}
+
+.how {
+  padding-left: 18px;
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.how li {
+  margin: 0 0 7px;
+}
+
+.tiny {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    animation: none;
+  }
+}
