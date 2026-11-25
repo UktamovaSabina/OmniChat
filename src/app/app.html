@@ -1,13 +1,27 @@
 <header>
-  <div class="logo" aria-hidden="true">O</div>
+  <app-logo [size]="36" />
   <div class="brand">
-    <h1>OmniChat</h1>
-    <p>One chat. The best AI for every question.</p>
+    <h1>Unified AI</h1>
+    <p>Every AI in one chat. The best one answers.</p>
   </div>
-  <span class="badge">MVP demo</span>
+  <div class="meta">
+    <span class="team">by Team Unity</span>
+    @if (store.mode() === 'mock') {
+      <span
+        class="badge"
+        title="Answers are simulated on the server. Set UNIFIED_AI_MODE=openrouter for real models."
+      >
+        Demo mode
+      </span>
+    }
+  </div>
 </header>
 
 <main>
   <app-chat />
   <app-sidebar />
 </main>
+
+<div class="toast" [class.show]="store.toast()?.visible" role="status" aria-live="polite">
+  {{ store.toast()?.text }}
+</div>

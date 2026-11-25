@@ -1,61 +1,30 @@
-<h3>Last routing decision</h3>
-<div class="card" aria-live="polite">
-  <!-- A one-item list keyed by decision id, so each new decision re-creates the bars and replays their animation. -->
-  @for (d of decision(); track d.id) {
-    <div class="cat">{{ categories[d.category].label }}</div>
-    <div class="muted">
-      {{ d.reason }}
-      @if (d.by === 'keywords') {
-        (keyword fallback)
-      }
-    </div>
-    @for (r of d.ranked; track r.model; let first = $first) {
-      <div class="bar">
-        <div class="lbl">
-          <span [class.win]="first">
-            @if (first) {
-              ✓
-            }
-            {{ models[r.model].name }}
-          </span>
-          <span>{{ r.score }}</span>
-        </div>
-        <div class="track">
-          <div class="fill" [style.width.%]="r.score" [style.background]="models[r.model].color"></div>
-        </div>
-      </div>
+<div class="tabs" role="tablist" aria-label="Side panel" (keydown)="onKeydown($event)">
+  @for (t of tabs; track t.id) {
+    <button
+      type="button"
+      role="tab"
+      [id]="'tab-' + t.id"
+      [attr.aria-selected]="tab() === t.id"
+      [attr.aria-controls]="'pane-' + t.id"
+      [attr.tabindex]="tab() === t.id ? 0 : -1"
+      [class.act]="tab() === t.id"
+      (click)="tab.set(t.id)"
+    >
+      {{ t.label }}
+    </button>
+  }
+</div>
+
+<div class="pane" role="tabpanel" [id]="'pane-' + tab()" [attr.aria-labelledby]="'tab-' + tab()">
+  @switch (tab()) {
+    @case ('routing') {
+      <app-routing-panel />
     }
-  } @empty {
-    <div class="muted">Send a question to see how the router picks a model.</div>
+    @case ('benchmarks') {
+      <app-benchmarks-panel />
+    }
+    @case ('stats') {
+      <app-stats-panel />
+    }
   }
-</div>
-
-<h3>This session</h3>
-<div class="card">
-  <div class="stat">
-    <span>Questions routed</span><b>{{ store.total() }}</b>
-  </div>
-  @for (u of store.usageList(); track u.model) {
-    <div class="stat">
-      <span><span class="dot" [style.background]="models[u.model].color"></span> {{ models[u.model].name }}</span>
-      <b>{{ u.count }}</b>
-    </div>
-  }
-  <div class="tiny">{{ store.savingsText() }}</div>
-</div>
-
-<h3>How it works</h3>
-<div class="card">
-  <ol class="how">
-    <li>
-      <b>Classify:</b> a fast AI model labels the question (coding, math, writing, research, image, translation or
-      general).
-    </li>
-    <li><b>Score:</b> the router looks up each model's benchmark score for that task.</li>
-    <li><b>Route:</b> the highest-scoring model answers. If scores tie, the cheaper one wins.</li>
-  </ol>
-  <div class="tiny">
-    Demo note: scores are illustrative placeholders, to be replaced with real benchmark data. In this MVP only Claude is
-    connected, so Claude writes every answer; the other providers plug in through their APIs.
-  </div>
 </div>

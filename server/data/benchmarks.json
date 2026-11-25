@@ -1,0 +1,67 @@
+{
+  "models": {
+    "claude": {
+      "name": "Claude",
+      "openrouterId": "anthropic/claude-sonnet-4.5",
+      "color": "#d97757",
+      "costTier": 2
+    },
+    "chatgpt": {
+      "name": "ChatGPT",
+      "openrouterId": "openai/gpt-5",
+      "color": "#10a37f",
+      "costTier": 2
+    },
+    "gemini": {
+      "name": "Gemini",
+      "openrouterId": "google/gemini-2.5-pro",
+      "color": "#4285f4",
+      "costTier": 1
+    },
+    "perplexity": {
+      "name": "Perplexity",
+      "openrouterId": "perplexity/sonar-pro",
+      "color": "#20808d",
+      "costTier": 2
+    },
+    "dalle": { "name": "DALL·E", "openrouterId": null, "color": "#9b51e0", "costTier": 3 }
+  },
+  "categories": {
+    "coding": {
+      "label": "Coding",
+      "short": "Code",
+      "scores": { "claude": 95, "chatgpt": 92, "gemini": 89, "perplexity": 80 }
+    },
+    "math": {
+      "label": "Math & logic",
+      "short": "Math",
+      "scores": { "chatgpt": 94, "gemini": 93, "claude": 90, "perplexity": 82 }
+    },
+    "writing": {
+      "label": "Writing",
+      "short": "Writing",
+      "scores": { "claude": 94, "chatgpt": 91, "gemini": 87, "perplexity": 80 }
+    },
+    "research": {
+      "label": "Research & news",
+      "short": "Research",
+      "scores": { "perplexity": 93, "gemini": 90, "chatgpt": 88, "claude": 86 }
+    },
+    "image": {
+      "label": "Image generation",
+      "short": "Image",
+      "scores": { "dalle": 92, "gemini": 90, "chatgpt": 88 }
+    },
+    "translation": {
+      "label": "Translation & languages",
+      "short": "Language",
+      "scores": { "gemini": 92, "chatgpt": 90, "claude": 89, "perplexity": 78 }
+    },
+    "general": {
+      "label": "General question",
+      "short": "General",
+      "scores": { "chatgpt": 90, "claude": 90, "gemini": 89, "perplexity": 85 }
+    }
+  },
+  "source": "Sample scores for the MVP. Replace with real leaderboard data (e.g. LMArena, Artificial Analysis)."
+}

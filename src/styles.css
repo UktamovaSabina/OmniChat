@@ -5,12 +5,12 @@
   --muted: #636a80;
   --line: #e4e7ef;
   --accent: #4f46e5;
+  --accent2: #8b5cf6;
+  --accent-gradient: linear-gradient(135deg, var(--accent), var(--accent2));
   --accent-soft: #eef0ff;
-  --claude: #d97757;
-  --chatgpt: #10a37f;
-  --gemini: #4285f4;
-  --perplexity: #20808d;
-  --dalle: #9b51e0;
+  --good: #16a34a;
+  --bad: #dc2626;
+  /* Model colours come from server/data/benchmarks.json. */
   --radius: 14px;
   --mono: 'JetBrains Mono', ui-monospace, monospace;
 }
@@ -49,6 +49,54 @@ button {
   height: 8px;
   border-radius: 50%;
   flex: none;
+}
+
+/* Side panel building blocks, shared by the Routing, Benchmarks and Stats tabs */
+.section {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.tiny {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+
+.tag {
+  background: #f0f1f6;
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* A learned score adjustment: +1 in green, −2 in red */
+.adj {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--good);
+}
+
+.adj.neg {
+  color: var(--bad);
 }
 
 /* Rendered Markdown answers (inserted via [innerHTML], so styled globally) */

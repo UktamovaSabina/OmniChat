@@ -18,8 +18,8 @@ const MAX_HEIGHT = 160;
       <textarea
         #box
         rows="1"
-        aria-label="Your question"
-        placeholder="Ask a question in any language…"
+        aria-label="Your prompt"
+        placeholder="Ask in English, O'zbekcha or Русский…"
         [value]="text()"
         (input)="onInput(box)"
         (keydown.enter)="onEnter($event)"
@@ -34,12 +34,12 @@ const MAX_HEIGHT = 160;
   styles: `
     :host {
       display: block;
-      padding: 12px 22px 18px;
+      padding: 12px 22px 8px;
       border-top: 1px solid var(--line);
       background: var(--bg);
     }
     form {
-      max-width: 760px;
+      max-width: 780px;
       margin: 0 auto;
       display: flex;
       gap: 10px;
@@ -64,7 +64,7 @@ const MAX_HEIGHT = 160;
     }
     .send {
       border: 0;
-      background: var(--accent);
+      background: var(--accent-gradient);
       color: #fff;
       font-weight: 600;
       padding: 0 18px;
@@ -75,9 +75,9 @@ const MAX_HEIGHT = 160;
       opacity: 0.5;
       cursor: default;
     }
-    @media (max-width: 900px) {
+    @media (max-width: 979px) {
       :host {
-        padding: 10px 12px 14px;
+        padding: 10px 12px 6px;
       }
     }
   `,

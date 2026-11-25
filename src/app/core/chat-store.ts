@@ -1,17 +1,37 @@
-import { Injectable, computed, inject, signal, type WritableSignal } from '@angular/core';
-import { ApiError, OmniChatApi, type ChatTurn, type Classification } from './omnichat-api';
-import { MODELS, isCategory, keywordRoute, rankModels, type Category, type ModelId, type RankedModel } from './routing';
+import {
+  Injectable,
+  InjectionToken,
+  computed,
+  inject,
+  signal,
+  type WritableSignal,
+} from '@angular/core';
+import { STEP } from './copy';
+import {
+  ApiError,
+  UnifiedAiService,
+  type Benchmarks,
+  type ChatResponse,
+  type ChatTurn,
+  type Mode,
+  type Routing,
+  type Stats,
+} from './unified-ai.service';
 
-export interface RouteDecision {
-  id: number;
-  category: Category;
-  reason: string;
-  by: 'ai' | 'keywords';
-  ranked: RankedModel[];
-  winner: ModelId;
+/** Animation timings (ms). Tests set them to 0. */
+export interface PipelineTiming {
+  /** Each of the first three steps while the request is in flight. */
+  stepMs: number;
+  /** Each remaining step when the answer arrives before the steps have played out. */
+  catchUpMs: number;
+  /** The quality-check step, after the answer appears. */
+  qualityMs: number;
+  toastMs: number;
 }
 
-type Classified = Pick<RouteDecision, 'category' | 'reason' | 'by'>;
+export const PIPELINE_TIMING = new InjectionToken<PipelineTiming>('PIPELINE_TIMING', {
+  factory: () => ({ stepMs: 400, catchUpMs: 120, qualityMs: 350, toastMs: 2600 }),
+});
 
 export interface UserTurn {
   kind: 'user';
@@ -19,48 +39,70 @@ export interface UserTurn {
   text: string;
 }
 
-export type BotStatus = 'routing' | 'answering' | 'done' | 'error';
+export type BotStatus = 'pending' | 'done' | 'error' | 'stopped';
 
 export interface BotTurn {
   kind: 'bot';
   id: number;
-  route: WritableSignal<RouteDecision | null>;
+  /** Index of the active pipeline step (0–4); STEP.done (5) once every step is done. */
+  step: WritableSignal<number>;
   status: WritableSignal<BotStatus>;
-  text: WritableSignal<string>;
+  result: WritableSignal<ChatResponse | null>;
   error: WritableSignal<string>;
-  note: WritableSignal<string>;
+  vote: WritableSignal<1 | -1 | null>;
 }
 
 export type Turn = UserTurn | BotTurn;
 
-/** Errors that mean no answer can be produced right now, so there's no point asking for one. */
-const UNAVAILABLE = new Set(['offline', 'not_configured']);
+export interface Decision {
+  turnId: number;
+  routing: Routing;
+  timings: ChatResponse['timings'];
+}
 
+export interface Toast {
+  id: number;
+  text: string;
+  visible: boolean;
+}
+
+const MAX_HISTORY = 20;
+const UNKNOWN_MODEL = { name: '', color: 'var(--muted)' };
+
+/** Conversation state plus the data behind the side panel (benchmarks, stats, last decision). */
 @Injectable({ providedIn: 'root' })
 export class ChatStore {
-  private readonly api = inject(OmniChatApi);
+  private readonly api = inject(UnifiedAiService);
+  private readonly timing = inject(PIPELINE_TIMING);
   private nextId = 1;
   /** Completed exchanges, sent to the server as conversation context. */
   private readonly history: ChatTurn[] = [];
   private abort?: AbortController;
+  private toastTimer?: ReturnType<typeof setTimeout>;
 
   readonly turns = signal<Turn[]>([]);
   readonly busy = signal(false);
-  readonly lastDecision = signal<RouteDecision | null>(null);
-  readonly usage = signal<Partial<Record<ModelId, number>>>({});
+  /** Null until the server has answered. */
+  readonly mode = signal<Mode | null>(null);
+  readonly benchmarks = signal<Benchmarks | null>(null);
+  readonly stats = signal<Stats | null>(null);
+  readonly lastDecision = signal<Decision | null>(null);
+  readonly toast = signal<Toast | null>(null);
 
-  readonly total = computed(() => Object.values(this.usage()).reduce((sum, n) => sum + (n ?? 0), 0));
-  readonly usageList = computed(() =>
-    (Object.entries(this.usage()) as [ModelId, number][])
-      .map(([model, count]) => ({ model, count }))
-      .sort((a, b) => b.count - a.count),
-  );
-  readonly savingsText = computed(() => {
-    const n = this.usageList().length;
-    return n > 1
-      ? `You used ${n} different AIs, which would be ${n} separate subscriptions. Here it's one.`
-      : 'Every model you use here would otherwise be a separate subscription.';
-  });
+  private readonly models = computed(() => this.benchmarks()?.models ?? {});
+
+  constructor() {
+    this.api.health().then(
+      (h) => this.mode.set(h.mode),
+      () => {}, // server not up yet; the first chat will report it
+    );
+    void this.refreshInsights();
+  }
+
+  /** Display name and colour for a model id, from benchmarks.json. */
+  model(id: string): { name: string; color: string } {
+    return this.models()[id] ?? { ...UNKNOWN_MODEL, name: id };
+  }
 
   async submit(raw: string): Promise<void> {
     const question = raw.trim();
@@ -70,98 +112,125 @@ export class ChatStore {
     const bot: BotTurn = {
       kind: 'bot',
       id: this.nextId++,
-      route: signal(null),
-      status: signal('routing'),
-      text: signal(''),
+      step: signal(0),
+      status: signal('pending'),
+      result: signal(null),
       error: signal(''),
-      note: signal(''),
+      vote: signal(null),
     };
     this.turns.update((t) => [...t, { kind: 'user', id: this.nextId++, text: question }, bot]);
+    this.abort = new AbortController();
 
+    // The server answers all at once, so the first steps are animated while the request is in flight.
+    const ticker = setInterval(
+      () => bot.step.update((s) => Math.min(s + 1, STEP.answering)),
+      this.timing.stepMs,
+    );
     try {
-      // 1. Classify, 2. score, 3. route.
-      const { info, unavailable } = await this.classify(question);
-      const ranked = rankModels(info.category);
-      const winner = ranked[0].model;
-      const decision: RouteDecision = { id: bot.id, ...info, ranked, winner };
-      bot.route.set(decision);
-      this.lastDecision.set(decision);
-      this.usage.update((u) => ({ ...u, [winner]: (u[winner] ?? 0) + 1 }));
-
-      if (unavailable) {
-        bot.status.set('error');
-        bot.error.set(`The router picked ${MODELS[winner].name}. ${unavailable.message}`);
-        return;
+      const result = await this.api.chat(
+        question,
+        this.history.slice(-MAX_HISTORY),
+        this.abort.signal,
+      );
+      clearInterval(ticker);
+      while (bot.step() < STEP.answering) {
+        await wait(this.timing.catchUpMs);
+        bot.step.update((s) => s + 1);
       }
-      await this.answer(bot, question, decision);
+
+      bot.result.set(result);
+      bot.step.set(STEP.quality);
+      this.mode.set(result.mode);
+      this.lastDecision.set({ turnId: bot.id, routing: result.routing, timings: result.timings });
+      this.history.push(
+        { role: 'user', content: question },
+        { role: 'assistant', content: result.answer },
+      );
+      void this.refreshInsights();
+
+      await wait(this.timing.qualityMs);
+      bot.step.set(STEP.done);
+      bot.status.set('done');
+    } catch (err) {
+      clearInterval(ticker);
+      if ((err as Error).name === 'AbortError') {
+        bot.status.set('stopped');
+        bot.error.set('Stopped before the answer arrived.');
+      } else {
+        bot.status.set('error');
+        bot.error.set(
+          err instanceof ApiError ? err.message : `Something went wrong: ${(err as Error).message}`,
+        );
+      }
     } finally {
       this.busy.set(false);
       this.abort = undefined;
     }
   }
 
-  /** Stops the answer that is currently streaming. */
+  /** Cancels the request that is in flight. */
   stop(): void {
     this.abort?.abort();
   }
 
-  /** Asks the AI classifier; falls back to keyword rules when it can't answer. */
-  private async classify(question: string): Promise<{ info: Classified; unavailable?: ApiError }> {
-    let unavailable: ApiError | undefined;
+  /** 👍 (1) or 👎 (-1) on an answer: the router adjusts that model's score for the category. */
+  async vote(turn: BotTurn, vote: 1 | -1): Promise<void> {
+    const result = turn.result();
+    if (!result || turn.vote() !== null) return;
+    turn.vote.set(vote);
+    const { category, selectedModel, categoryLabel } = result.routing;
     try {
-      const result: Classification = await this.api.classify(question);
-      if (isCategory(result.category)) {
-        return { info: { category: result.category, reason: result.reason, by: 'ai' } };
-      }
-    } catch (err) {
-      if (err instanceof ApiError && UNAVAILABLE.has(err.code)) unavailable = err;
-    }
-    return {
-      info: { category: keywordRoute(question), reason: 'Matched keywords in the question.', by: 'keywords' },
-      unavailable,
-    };
-  }
-
-  private async answer(bot: BotTurn, question: string, decision: RouteDecision): Promise<void> {
-    bot.status.set('answering');
-    this.abort = new AbortController();
-    const messages: ChatTurn[] = [...this.history, { role: 'user', content: question }];
-    let servedBy = '';
-    let stopReason: string | null = null;
-
-    try {
-      for await (const event of this.api.streamChat(messages, decision.category, this.abort.signal)) {
-        if (event.type === 'text') bot.text.update((t) => t + event.delta);
-        else if (event.type === 'done') ({ model: servedBy, stopReason } = event);
-        else throw new ApiError(event.code, event.message);
-      }
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') {
-        this.finish(bot, question, decision, servedBy, 'stopped');
-        return;
-      }
-      bot.text.set(''); // a partial answer cut off by an error isn't worth keeping
-      bot.status.set('error');
-      bot.error.set(
-        err instanceof ApiError ? err.message : `Couldn't get an answer: ${(err as Error).message || 'unknown error'}`,
+      const r = await this.api.feedback({
+        messageId: result.id,
+        category,
+        model: selectedModel,
+        vote,
+      });
+      this.showToast(
+        `Router learned: ${this.model(r.model).name} · ${categoryLabel} ${r.before} → ${r.after}`,
       );
-      return;
+      void this.refreshInsights();
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'already_voted') return;
+      turn.vote.set(null);
+      this.showToast(
+        `Couldn't send feedback. ${err instanceof ApiError ? err.message : ''}`.trim(),
+      );
     }
-    this.finish(bot, question, decision, servedBy, stopReason);
   }
 
-  private finish(bot: BotTurn, question: string, decision: RouteDecision, servedBy: string, stopReason: string | null) {
-    const text = bot.text();
-    bot.status.set('done');
-    if (text) this.history.push({ role: 'user', content: question }, { role: 'assistant', content: text });
-
-    const notes: string[] = [];
-    if (decision.winner !== 'claude') {
-      const claude = servedBy ? `Claude (${servedBy})` : 'Claude';
-      notes.push(`Demo mode: ${MODELS[decision.winner].name} isn't connected yet, so ${claude} answered in its place.`);
+  /** Clears the server's stats and learned adjustments (handy before a live demo). */
+  async resetLearning(): Promise<void> {
+    try {
+      await this.api.reset();
+      this.showToast('Stats and learned scores were reset.');
+    } catch (err) {
+      this.showToast(err instanceof ApiError ? err.message : "Couldn't reset.");
     }
-    if (stopReason === 'max_tokens') notes.push('The answer hit the length limit and was cut off.');
-    if (stopReason === 'stopped') notes.push('Stopped.');
-    bot.note.set(notes.join(' '));
+    await this.refreshInsights();
   }
+
+  /** Reloads the benchmark table and stats; keeps the old values if the server can't be reached. */
+  async refreshInsights(): Promise<void> {
+    const [benchmarks, stats] = await Promise.allSettled([
+      this.api.getBenchmarks(),
+      this.api.getStats(),
+    ]);
+    if (benchmarks.status === 'fulfilled') this.benchmarks.set(benchmarks.value);
+    if (stats.status === 'fulfilled') this.stats.set(stats.value);
+  }
+
+  private showToast(text: string): void {
+    const id = (this.toast()?.id ?? 0) + 1;
+    this.toast.set({ id, text, visible: true });
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(
+      () => this.toast.update((t) => (t?.id === id ? { ...t, visible: false } : t)),
+      this.timing.toastMs,
+    );
+  }
+}
+
+function wait(ms: number): Promise<void> {
+  return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
 }

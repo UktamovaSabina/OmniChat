@@ -1,0 +1,392 @@
+{
+  "_readme": "Canned answers for mock mode. 'prompts' are matched by exact text (case, spacing, curly quotes and trailing punctuation are ignored). Everything else gets the template for its category and language; {prompt} is replaced with the user's message and {note} with the demo note. An answer can be a string or an array of lines.",
+  "prompts": [
+    {
+      "prompt": "Fix this Python: for i in range(10) print(i)",
+      "answer": [
+        "You're missing a colon after `range(10)`. In Python, every `for` line has to end with `:`, and the loop body goes on the next line, indented.",
+        "",
+        "```python",
+        "for i in range(10):",
+        "    print(i)",
+        "```",
+        "",
+        "**Output:** the numbers `0` to `9`, one per line.",
+        "",
+        "**Why it failed:** Python reads the colon as \"the loop body starts here\". Without it you get `SyntaxError: expected ':'`.",
+        "",
+        "**Tip:** `range(10)` stops *before* 10. For 1 to 10, use `range(1, 11)`."
+      ]
+    },
+    {
+      "prompt": "Solve the integral of x·e^x dx step by step",
+      "answer": [
+        "Use **integration by parts**: ∫ u dv = u·v − ∫ v du.",
+        "",
+        "**Step 1: choose u and dv.** Take as *u* the part that gets simpler when you differentiate it:",
+        "",
+        "- u = x, so du = dx",
+        "- dv = eˣ dx, so v = eˣ",
+        "",
+        "**Step 2: apply the formula.**",
+        "",
+        "∫ x·eˣ dx = x·eˣ − ∫ eˣ dx",
+        "",
+        "**Step 3: finish the last integral.** Since ∫ eˣ dx = eˣ:",
+        "",
+        "∫ x·eˣ dx = **x·eˣ − eˣ + C** = eˣ(x − 1) + C",
+        "",
+        "**Check:** differentiate the result. d/dx (x·eˣ − eˣ) = eˣ + x·eˣ − eˣ = x·eˣ ✓"
+      ]
+    },
+    {
+      "prompt": "What are the biggest AI news this week?",
+      "answer": [
+        "Here's how I'd summarise this week's AI headlines. **Demo mode has no live web access**, so this shows the shape of the briefing rather than real stories:",
+        "",
+        "| Area | What the briefing covers |",
+        "| --- | --- |",
+        "| **Model releases** | New or updated models from the major labs, and the benchmarks they claim |",
+        "| **Products** | AI features shipping in apps people already use |",
+        "| **Funding & business** | Large funding rounds, acquisitions and partnerships |",
+        "| **Policy & regulation** | New laws, government guidance and court cases |",
+        "| **Research** | Notable papers and open-source releases |",
+        "",
+        "In live mode, Perplexity searches the web, summarises the top stories in each area and links a source for every item, so you can check it yourself."
+      ]
+    },
+    {
+      "prompt": "Translate \"Good morning, how are you?\" into Uzbek",
+      "answer": [
+        "**Xayrli tong, qalaysiz?**",
+        "",
+        "| When to use it | Uzbek |",
+        "| --- | --- |",
+        "| Polite (strangers, elders, work) | Xayrli tong, qalaysiz? |",
+        "| Casual (friends, family) | Xayrli tong, qalaysan? |",
+        "| Cyrillic script | Хайрли тонг, қалайсиз? |",
+        "",
+        "- **Xayrli tong** means \"Good morning\".",
+        "- **Qalaysiz?** means \"How are you?\". The ending *-siz* is the polite form; *-san* is informal.",
+        "",
+        "A typical reply: **Yaxshi, rahmat! O'zingiz-chi?** (\"Fine, thanks! And you?\")"
+      ]
+    },
+    {
+      "prompt": "Draw a logo for a coffee shop in Tashkent",
+      "answer": [
+        "Here's a ready-to-use prompt for an image model:",
+        "",
+        "```text",
+        "Minimalist flat vector logo for a specialty coffee shop in Tashkent. A coffee cup seen from the side, its rising steam curling into the outline of a turquoise dome, framed by a thin eight-pointed star in Uzbek girih style. Palette: espresso brown (#4B2E1F), warm cream (#F3E6D0) and turquoise (#1FA6A0). Clean geometric sans-serif wordmark below the icon. Centred on a white background, high contrast, no gradients, scalable for signage and cups.",
+        "```",
+        "",
+        "**Design notes**",
+        "",
+        "- **Concept:** coffee meets Tashkent. The turquoise dome nods to the blue-tiled domes of Uzbek architecture.",
+        "- **Icon:** the cup-and-dome mark works on its own as an app icon or a stamp on takeaway cups.",
+        "- **Variations to try:** a round badge version, and a single-colour version for printing on cups and bags."
+      ]
+    },
+    {
+      "prompt": "Write a short wedding toast for my sister",
+      "answer": [
+        "Here's a short toast, about one minute long. Swap in the names and one real memory:",
+        "",
+        "> Good evening, everyone! For those who don't know me, I'm **[your name]**, [sister's name]'s [brother/sister].",
+        ">",
+        "> [Sister's name], I've known you my whole life. I've watched you [borrow my clothes without asking / boss me around / beat me at every board game], and somewhere along the way you became one of the kindest, bravest people I know.",
+        ">",
+        "> [Partner's name], the first time [sister's name] talked about you, I could tell this was different. You make her laugh harder, worry less and shine brighter, and that's all I've ever wanted for her.",
+        ">",
+        "> They say marriage is finding the one person you'd happily annoy for the rest of your life. I think you two have found each other.",
+        ">",
+        "> So please raise your glasses: **to [sister's name] and [partner's name]**, and to a lifetime of love, laughter and patience. Cheers!",
+        "",
+        "**Tips:** keep it under two minutes, look at the couple when you speak to them, and end on the raised glass."
+      ]
+    },
+    {
+      "prompt": "Menga sog'lom nonushta uchun 3 ta g'oya ber",
+      "answer": [
+        "Mana sog'lom nonushta uchun 3 ta g'oya:",
+        "",
+        "1. **Mevali va yong'oqli suli bo'tqasi.** Suli yormasini sut yoki suvda pishiring, ustiga banan yoki olma bo'laklari, bir hovuch yong'oq va bir choy qoshiq asal qo'shing. Tolaga boy, uzoq vaqt to'q tutadi.",
+        "2. **Sabzavotli omlet.** 2 ta tuxumga pomidor, ismaloq va bulg'or qalampirini qo'shib omlet tayyorlang. Yoniga bir bo'lak to'liq donli non qo'ying. Oqsilga boy va 10 daqiqada tayyor bo'ladi.",
+        "3. **Qatiq, meva va urug'lar.** Bir kosa tabiiy qatiq yoki yogurtga mavsumiy meva, bir qoshiq suli yoki granola va bir choy qoshiq zig'ir urug'i qo'shing. Tayyorlash uchun 5 daqiqa kifoya.",
+        "",
+        "**Maslahat:** nonushtaga bir stakan suv yoki shakarsiz choy qo'shing va shirin ichimliklarni kamaytiring."
+      ]
+    }
+  ],
+  "notes": {
+    "English": "_Demo mode: this is a canned answer. Switch to `openrouter` mode for a real one._",
+    "Uzbek": "_Demo rejimi: bu tayyor javob. Haqiqiy javob uchun `openrouter` rejimiga o'ting._",
+    "Russian": "_Демо-режим: это заготовленный ответ. Для настоящего ответа переключитесь в режим `openrouter`._"
+  },
+  "templates": {
+    "coding": {
+      "English": [
+        "Here's how to tackle this coding task:",
+        "",
+        "> {prompt}",
+        "",
+        "1. **Reproduce it.** Run the smallest piece of code that shows the problem and note the exact error message.",
+        "2. **Read the traceback.** The last line names the error type; the line above it shows where it happened.",
+        "3. **Fix one thing at a time.** Change a single line, rerun, and check the output.",
+        "4. **Add a quick test** so the bug can't come back.",
+        "",
+        "{note}"
+      ],
+      "Uzbek": [
+        "Bu dasturlash vazifasini shunday hal qilish mumkin:",
+        "",
+        "> {prompt}",
+        "",
+        "1. **Xatoni takrorlang.** Muammoni ko'rsatadigan eng kichik kodni ishga tushiring va xato xabarini yozib oling.",
+        "2. **Traceback'ni o'qing.** Oxirgi qator xato turini, undan oldingisi esa xato qayerda yuz berganini ko'rsatadi.",
+        "3. **Bittadan tuzating.** Bitta qatorni o'zgartiring, qayta ishga tushiring va natijani tekshiring.",
+        "4. **Kichik test qo'shing**, shunda xato qaytib kelmaydi.",
+        "",
+        "{note}"
+      ],
+      "Russian": [
+        "Вот как стоит решить эту задачу:",
+        "",
+        "> {prompt}",
+        "",
+        "1. **Воспроизведите ошибку.** Запустите минимальный фрагмент кода и запишите точный текст ошибки.",
+        "2. **Прочитайте traceback.** Последняя строка называет тип ошибки, строка выше показывает, где она возникла.",
+        "3. **Исправляйте по одному.** Меняйте одну строку, перезапускайте и проверяйте результат.",
+        "4. **Добавьте небольшой тест**, чтобы ошибка не вернулась.",
+        "",
+        "{note}"
+      ]
+    },
+    "math": {
+      "English": [
+        "Let's work through it step by step:",
+        "",
+        "> {prompt}",
+        "",
+        "1. **Write down what's given** and what you need to find.",
+        "2. **Pick the method:** substitution, factoring, integration by parts, or a formula that fits.",
+        "3. **Put each step on its own line**, so a mistake is easy to spot.",
+        "4. **Check the result** by plugging it back in (for an integral, differentiate it).",
+        "",
+        "{note}"
+      ],
+      "Uzbek": [
+        "Keling, bosqichma-bosqich yechamiz:",
+        "",
+        "> {prompt}",
+        "",
+        "1. **Berilganlarni yozing** va nimani topish kerakligini aniqlang.",
+        "2. **Usulni tanlang:** o'rniga qo'yish, ko'paytuvchilarga ajratish, bo'laklab integrallash yoki mos formula.",
+        "3. **Har bir qadamni alohida qatorga yozing**, shunda xatoni topish oson bo'ladi.",
+        "4. **Javobni tekshiring:** uni qaytadan qo'yib ko'ring (integral bo'lsa, hosilasini oling).",
+        "",
+        "{note}"
+      ],
+      "Russian": [
+        "Решим по шагам:",
+        "",
+        "> {prompt}",
+        "",
+        "1. **Запишите, что дано** и что нужно найти.",
+        "2. **Выберите метод:** подстановка, разложение на множители, интегрирование по частям или подходящая формула.",
+        "3. **Каждый шаг пишите на отдельной строке**, так ошибку легче заметить.",
+        "4. **Проверьте ответ:** подставьте его обратно (для интеграла продифференцируйте).",
+        "",
+        "{note}"
+      ]
+    },
+    "writing": {
+      "English": [
+        "Here's a draft structure you can fill in:",
+        "",
+        "> {prompt}",
+        "",
+        "**Opening:** one line that sets the tone and tells the reader why this matters.",
+        "",
+        "**Middle:** two or three short paragraphs, each built around one idea or one specific detail.",
+        "",
+        "**Close:** end on a clear takeaway, a thank-you or a call to action.",
+        "",
+        "**Tip:** read it out loud once. Anything you stumble over is worth rewriting.",
+        "",
+        "{note}"
+      ],
+      "Uzbek": [
+        "Mana to'ldirishingiz mumkin bo'lgan qoralama tuzilmasi:",
+        "",
+        "> {prompt}",
+        "",
+        "**Kirish:** ohangni belgilaydigan va nima uchun muhimligini aytadigan bitta jumla.",
+        "",
+        "**Asosiy qism:** har biri bitta g'oya yoki aniq tafsilotga qurilgan 2–3 ta qisqa xatboshi.",
+        "",
+        "**Yakun:** aniq xulosa, minnatdorchilik yoki harakatga chaqiriq bilan tugating.",
+        "",
+        "**Maslahat:** matnni bir marta ovoz chiqarib o'qing. Qoqilgan joylaringizni qayta yozing.",
+        "",
+        "{note}"
+      ],
+      "Russian": [
+        "Вот структура черновика, которую можно заполнить:",
+        "",
+        "> {prompt}",
+        "",
+        "**Начало:** одна фраза, которая задаёт тон и объясняет, почему это важно.",
+        "",
+        "**Основная часть:** два-три коротких абзаца, каждый вокруг одной мысли или детали.",
+        "",
+        "**Концовка:** чёткий вывод, благодарность или призыв к действию.",
+        "",
+        "**Совет:** прочитайте текст вслух. Всё, на чём вы запнулись, стоит переписать.",
+        "",
+        "{note}"
+      ]
+    },
+    "research": {
+      "English": [
+        "Here's how this answer would be built from up-to-date sources:",
+        "",
+        "> {prompt}",
+        "",
+        "- **Latest developments:** what changed recently, and who reported it.",
+        "- **Key numbers:** prices, dates or figures, each with its source.",
+        "- **Context:** why it matters and what to watch next.",
+        "",
+        "In live mode, Perplexity searches the web and cites a source for every point.",
+        "",
+        "_Demo mode: this is a canned answer, so it contains no live data._"
+      ],
+      "Uzbek": [
+        "Bu javob dolzarb manbalar asosida shunday tuziladi:",
+        "",
+        "> {prompt}",
+        "",
+        "- **So'nggi o'zgarishlar:** yaqinda nima o'zgargani va kim xabar bergani.",
+        "- **Asosiy raqamlar:** narxlar, sanalar yoki ko'rsatkichlar, har biri manbasi bilan.",
+        "- **Kontekst:** bu nima uchun muhim va nimaga e'tibor berish kerak.",
+        "",
+        "Jonli rejimda Perplexity internetdan qidiradi va har bir fikr uchun manba ko'rsatadi.",
+        "",
+        "_Demo rejimi: bu tayyor javob, unda jonli ma'lumot yo'q._"
+      ],
+      "Russian": [
+        "Вот как строится ответ на основе актуальных источников:",
+        "",
+        "> {prompt}",
+        "",
+        "- **Последние новости:** что изменилось недавно и кто об этом сообщил.",
+        "- **Ключевые цифры:** цены, даты или показатели, каждый с источником.",
+        "- **Контекст:** почему это важно и за чем следить дальше.",
+        "",
+        "В рабочем режиме Perplexity ищет в интернете и приводит источник для каждого пункта.",
+        "",
+        "_Демо-режим: это заготовленный ответ, живых данных в нём нет._"
+      ]
+    },
+    "image": {
+      "English": [
+        "Here's a ready-to-use prompt for an image model:",
+        "",
+        "```text",
+        "{prompt}. High-quality digital illustration, clean composition, soft natural lighting, balanced colour palette, sharp detail, centred subject, plain background.",
+        "```",
+        "",
+        "**Tip:** name a style (flat vector, watercolour, 3D render), a colour palette and an aspect ratio to get closer to what you have in mind."
+      ],
+      "Uzbek": [
+        "Mana rasm modeli uchun tayyor prompt:",
+        "",
+        "```text",
+        "{prompt}. High-quality digital illustration, clean composition, soft natural lighting, balanced colour palette, sharp detail, centred subject, plain background.",
+        "```",
+        "",
+        "**Maslahat:** uslubni (flat vector, akvarel, 3D render), ranglar palitrasini va tomonlar nisbatini ko'rsating. Natija o'ylaganingizga yaqinroq bo'ladi."
+      ],
+      "Russian": [
+        "Вот готовый промпт для модели генерации изображений:",
+        "",
+        "```text",
+        "{prompt}. High-quality digital illustration, clean composition, soft natural lighting, balanced colour palette, sharp detail, centred subject, plain background.",
+        "```",
+        "",
+        "**Совет:** укажите стиль (flat vector, акварель, 3D-рендер), палитру и соотношение сторон. Так результат будет ближе к задуманному."
+      ]
+    },
+    "translation": {
+      "English": [
+        "Here's what you get for this translation:",
+        "",
+        "> {prompt}",
+        "",
+        "- **The translation itself**, in natural, everyday wording.",
+        "- **A polite and a casual version**, where the language tells them apart (for example *siz* / *sen* in Uzbek, *вы* / *ты* in Russian).",
+        "- **Notes** on idioms or words that don't translate word for word.",
+        "",
+        "{note}"
+      ],
+      "Uzbek": [
+        "Bu tarjima uchun quyidagilarni olasiz:",
+        "",
+        "> {prompt}",
+        "",
+        "- **Tarjimaning o'zi**, tabiiy va kundalik so'zlar bilan.",
+        "- **Rasmiy va norasmiy variant**, agar til ularni ajratsa (masalan, o'zbek tilida *siz* / *sen*, rus tilida *вы* / *ты*).",
+        "- **Izohlar**: so'zma-so'z tarjima qilinmaydigan iboralar haqida.",
+        "",
+        "{note}"
+      ],
+      "Russian": [
+        "Вот что вы получите для этого перевода:",
+        "",
+        "> {prompt}",
+        "",
+        "- **Сам перевод**, естественными повседневными словами.",
+        "- **Вежливый и разговорный вариант**, если язык их различает (например, *siz* / *sen* в узбекском, *вы* / *ты* в русском).",
+        "- **Пояснения** к идиомам и словам, которые не переводятся дословно.",
+        "",
+        "{note}"
+      ]
+    },
+    "general": {
+      "English": [
+        "Good question. Here's the shape of a short, practical answer:",
+        "",
+        "> {prompt}",
+        "",
+        "1. **The short version:** the one-sentence answer most people need.",
+        "2. **The detail:** the main factors or steps behind it.",
+        "3. **What to do next:** a concrete next step, or where to read more.",
+        "",
+        "{note}"
+      ],
+      "Uzbek": [
+        "Yaxshi savol. Mana qisqa va amaliy javobning tuzilishi:",
+        "",
+        "> {prompt}",
+        "",
+        "1. **Qisqacha:** ko'pchilikka kerak bo'ladigan bir jumlalik javob.",
+        "2. **Batafsil:** uning ortidagi asosiy omillar yoki qadamlar.",
+        "3. **Keyingi qadam:** aniq harakat yoki qayerdan ko'proq o'qish mumkinligi.",
+        "",
+        "{note}"
+      ],
+      "Russian": [
+        "Хороший вопрос. Вот структура короткого практичного ответа:",
+        "",
+        "> {prompt}",
+        "",
+        "1. **Коротко:** ответ в одном предложении, который нужен большинству.",
+        "2. **Подробнее:** основные факторы или шаги.",
+        "3. **Что дальше:** конкретный следующий шаг или где почитать больше.",
+        "",
+        "{note}"
+      ]
+    }
+  }
+}

@@ -1,23 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatStore, type BotTurn } from './chat-store';
-import { ApiError, OmniChatApi, type ChatTurn, type Classification, type StreamEvent } from './omnichat-api';
-import type { Category } from './routing';
-
-class FakeApi {
-  classifyResult: Classification | ApiError = { category: 'coding', reason: 'It is code.' };
-  events: StreamEvent[] = [];
-  sent: { messages: ChatTurn[]; category: Category }[] = [];
-
-  async classify(): Promise<Classification> {
-    if (this.classifyResult instanceof ApiError) throw this.classifyResult;
-    return this.classifyResult;
-  }
-
-  async *streamChat(messages: ChatTurn[], category: Category): AsyncGenerator<StreamEvent> {
-    this.sent.push({ messages: [...messages], category });
-    for (const e of this.events) yield e;
-  }
-}
+import { STEP } from './copy';
+import { chatResponse, FakeApi, NO_DELAYS } from './testing';
+import { ApiError, UnifiedAiService } from './unified-ai.service';
 
 describe('ChatStore', () => {
   let store: ChatStore;
@@ -25,80 +10,71 @@ describe('ChatStore', () => {
 
   beforeEach(() => {
     api = new FakeApi();
-    TestBed.configureTestingModule({ providers: [{ provide: OmniChatApi, useValue: api }] });
+    TestBed.configureTestingModule({
+      providers: [{ provide: UnifiedAiService, useValue: api }, NO_DELAYS],
+    });
     store = TestBed.inject(ChatStore);
   });
 
   const lastBot = () => store.turns().at(-1) as BotTurn;
 
-  it('routes with the AI classifier and streams the answer', async () => {
-    api.events = [
-      { type: 'text', delta: 'Add a ' },
-      { type: 'text', delta: 'colon.' },
-      { type: 'done', model: 'claude-opus-5-5', stopReason: 'end_turn' },
-    ];
-    await store.submit('fix my python');
+  it('runs the pipeline and records the routing decision', async () => {
+    const callsBefore = api.benchmarkCalls;
+    await store.submit('Fix this Python: for i in range(10) print(i)');
 
     const bot = lastBot();
-    expect(bot.route()).toMatchObject({ category: 'coding', winner: 'claude', by: 'ai' });
     expect(bot.status()).toBe('done');
-    expect(bot.text()).toBe('Add a colon.');
-    expect(bot.note()).toBe(''); // Claude was the router's pick, so no stand-in note
-    expect(store.total()).toBe(1);
+    expect(bot.step()).toBe(STEP.done);
+    expect(bot.result()?.answer).toContain('colon');
+    expect(store.lastDecision()?.routing.selectedModel).toBe('claude');
+    expect(store.mode()).toBe('mock');
     expect(store.busy()).toBe(false);
+    expect(api.benchmarkCalls).toBe(callsBefore + 1); // benchmarks and stats refresh after each answer
   });
 
-  it('notes when Claude stands in for another model and keeps history', async () => {
-    api.classifyResult = { category: 'math', reason: 'An equation.' };
-    api.events = [
-      { type: 'text', delta: 'x = 2' },
-      { type: 'done', model: 'claude-opus-5-5', stopReason: 'end_turn' },
-    ];
-    await store.submit('2x = 4');
-    expect(lastBot().route()?.winner).toBe('chatgpt');
-    expect(lastBot().note()).toContain("ChatGPT isn't connected yet");
-
-    await store.submit('and 3x = 9?');
-    expect(api.sent[1].messages).toEqual([
-      { role: 'user', content: '2x = 4' },
-      { role: 'assistant', content: 'x = 2' },
-      { role: 'user', content: 'and 3x = 9?' },
-    ]);
-    expect(store.usageList()).toEqual([{ model: 'chatgpt', count: 2 }]);
+  it('sends earlier exchanges as history', async () => {
+    await store.submit('first');
+    await store.submit('second');
+    expect(api.sent[1]).toEqual({
+      message: 'second',
+      history: [
+        { role: 'user', content: 'first' },
+        { role: 'assistant', content: chatResponse().answer },
+      ],
+    });
   });
 
-  it('falls back to keywords and skips answering when the server has no API key', async () => {
-    api.classifyResult = new ApiError('not_configured', 'Set ANTHROPIC_API_KEY.');
-    await store.submit('Draw a logo for a coffee shop');
-
+  it('sends one vote per answer and shows what the router learned', async () => {
+    await store.submit('fix my code');
     const bot = lastBot();
-    expect(bot.route()).toMatchObject({ category: 'image', winner: 'dalle', by: 'keywords' });
-    expect(bot.status()).toBe('error');
-    expect(bot.error()).toBe('The router picked DALL·E. Set ANTHROPIC_API_KEY.');
-    expect(api.sent).toHaveLength(0);
+    await store.vote(bot, 1);
+    await store.vote(bot, -1); // ignored: already voted
+
+    expect(api.votes).toEqual([
+      { messageId: 'msg_1', category: 'coding', model: 'claude', vote: 1 },
+    ]);
+    expect(bot.vote()).toBe(1);
+    expect(store.toast()?.text).toBe('Router learned: Claude · Coding 95 → 96');
   });
 
-  it('still answers when only the classifier fails', async () => {
-    api.classifyResult = new ApiError('unclassified', 'No usable answer.');
-    api.events = [{ type: 'text', delta: 'Hi' }, { type: 'done', model: 'm', stopReason: 'end_turn' }];
-    await store.submit('hello there');
-    expect(lastBot().route()?.by).toBe('keywords');
-    expect(lastBot().text()).toBe('Hi');
+  it('lets the user vote again when sending the vote fails', async () => {
+    await store.submit('fix my code');
+    api.feedbackResult = new ApiError('offline', "Can't reach the Unified AI server.");
+    await store.vote(lastBot(), -1);
+    expect(lastBot().vote()).toBeNull();
+    expect(store.toast()?.text).toContain("Couldn't send feedback");
   });
 
-  it('shows a stream error and leaves it out of history', async () => {
-    api.events = [
-      { type: 'text', delta: 'partial' },
-      { type: 'error', code: 'refusal', message: 'The model declined to answer this request.' },
-    ];
+  it('shows a server error on the card and keeps it out of history', async () => {
+    api.chatResult = new ApiError('rate_limited', 'OpenRouter is rate-limiting requests.');
     await store.submit('fix my code');
     expect(lastBot().status()).toBe('error');
-    expect(lastBot().text()).toBe('');
-    expect(lastBot().error()).toBe('The model declined to answer this request.');
+    expect(lastBot().error()).toBe('OpenRouter is rate-limiting requests.');
+    expect(lastBot().result()).toBeNull();
 
-    api.events = [{ type: 'done', model: 'm', stopReason: 'end_turn' }];
+    api.chatResult = chatResponse();
     await store.submit('next');
-    expect(api.sent[1].messages).toEqual([{ role: 'user', content: 'next' }]);
+    expect(api.sent[1].history).toEqual([]);
   });
 
   it('ignores blank input', async () => {
