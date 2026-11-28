@@ -248,12 +248,12 @@ export class AssistantMessage {
     () => WAITING_TEXT[Math.min(this.turn().step(), STEP.answering)],
   );
 
-  /** Explains when another model answered in place of the router's pick (DALL·E in openrouter mode). */
+  /** Explains when another model answered in place of the router's pick (e.g. Gemini for DALL·E). */
   protected readonly standIn = computed(() => {
     const r = this.result();
     if (!r?.answeredBy) return '';
     const picked = this.store.model(r.routing.selectedModel).name;
-    return `${picked} isn't available through OpenRouter, so ${this.store.model(r.answeredBy).name} answered in its place.`;
+    return `${picked} isn't connected directly, so ${this.store.model(r.answeredBy).name} answered in its place.`;
   });
 
   protected stepState(index: number): StepState {

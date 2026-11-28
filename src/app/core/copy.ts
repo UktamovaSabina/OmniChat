@@ -45,7 +45,7 @@ export const HOW_IT_WORKS: readonly { title: string; text: string }[] = [
   },
   { title: 'Compare', text: "it looks up every model's benchmark score for that task." },
   { title: 'Pick', text: 'the highest score wins; if scores tie, the cheaper model wins.' },
-  { title: 'Answer', text: 'the prompt goes to that model through one API (OpenRouter).' },
+  { title: 'Answer', text: 'the prompt runs through one unified API (Gemini).' },
   {
     title: 'Check & learn',
     text: 'an AI judge rates the answer, and 👍/👎 adjust the scores over time.',

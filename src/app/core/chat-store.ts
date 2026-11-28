@@ -75,15 +75,16 @@ export class ChatStore {
   private readonly api = inject(UnifiedAiService);
   private readonly timing = inject(PIPELINE_TIMING);
   private nextId = 1;
-  /** Completed exchanges, sent to the server as conversation context. */
+  /** Completed exchanges, sent as conversation context. */
   private readonly history: ChatTurn[] = [];
   private abort?: AbortController;
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   readonly turns = signal<Turn[]>([]);
   readonly busy = signal(false);
-  /** Null until the server has answered. */
+  /** Null until initialized. */
   readonly mode = signal<Mode | null>(null);
+  readonly hasCustomApiKey = signal(false);
   readonly benchmarks = signal<Benchmarks | null>(null);
   readonly stats = signal<Stats | null>(null);
   readonly lastDecision = signal<Decision | null>(null);
@@ -92,11 +93,37 @@ export class ChatStore {
   private readonly models = computed(() => this.benchmarks()?.models ?? {});
 
   constructor() {
+    this.hasCustomApiKey.set(this.api.hasCustomApiKey?.() ?? false);
     this.api.health().then(
       (h) => this.mode.set(h.mode),
-      () => {}, // server not up yet; the first chat will report it
+      () => {},
     );
     void this.refreshInsights();
+  }
+
+  /** Saves a Gemini API key in browser storage and switches to live Gemini mode. */
+  setApiKey(rawKey: string): void {
+    const key = rawKey.trim();
+    if (!key) {
+      this.clearApiKey();
+      return;
+    }
+    const nextMode = this.api.setApiKey?.(key) ?? 'gemini';
+    this.mode.set(nextMode);
+    this.hasCustomApiKey.set(true);
+    this.showToast('Gemini API key saved in this browser. Live mode is active.');
+  }
+
+  /** Clears the custom Gemini API key and falls back to Demo (mock) mode. */
+  clearApiKey(): void {
+    const nextMode = this.api.clearApiKey?.() ?? 'mock';
+    this.mode.set(nextMode);
+    this.hasCustomApiKey.set(false);
+    this.showToast(
+      nextMode === 'gemini'
+        ? 'Cleared custom key; using build-time Gemini key.'
+        : 'Switched back to offline Demo mode.',
+    );
   }
 
   /** Display name and colour for a model id, from benchmarks.json. */

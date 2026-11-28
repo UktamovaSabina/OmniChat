@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "concurrently -k -n api,web -c blue,magenta \"npm:server\" \"npm:web\"",
+    "start": "ng serve",
     "web": "ng serve",
     "server": "node --env-file-if-exists=.env --watch server/index.ts",
     "serve:prod": "node --env-file-if-exists=.env server/index.ts",

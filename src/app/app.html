@@ -9,13 +9,53 @@
     @if (store.mode() === 'mock') {
       <span
         class="badge"
-        title="Answers are simulated on the server. Set UNIFIED_AI_MODE=openrouter for real models."
+        title="Simulated answers in your browser. Add a Gemini API key to switch to live AI answers."
       >
         Demo mode
       </span>
+    } @else if (store.mode() === 'gemini') {
+      <span
+        class="badge live"
+        title="Live mode: Gemini acts as the unified router, answerer and quality judge in your browser."
+      >
+        Gemini live
+      </span>
     }
+    <button
+      type="button"
+      class="key-btn"
+      (click)="toggleKeyPanel()"
+      [attr.aria-expanded]="keyPanelOpen()"
+    >
+      {{ store.mode() === 'gemini' ? 'API key' : 'Use Gemini key' }}
+    </button>
   </div>
 </header>
+
+@if (keyPanelOpen()) {
+  <div class="key-bar" role="region" aria-label="Gemini API key settings">
+    <form class="key-form" (ngSubmit)="saveKey()">
+      <label for="gemini-key-input">Gemini API key</label>
+      <input
+        id="gemini-key-input"
+        type="password"
+        name="geminiKey"
+        [(ngModel)]="keyDraft"
+        placeholder="Paste AIza... key (stored only in your browser)"
+        autocomplete="off"
+      />
+      <button type="submit" class="save-btn" [disabled]="!keyDraft.trim()">Save</button>
+      @if (store.hasCustomApiKey()) {
+        <button type="button" class="clear-btn" (click)="clearKey()">Use Demo mode</button>
+      }
+      <button type="button" class="close-btn" (click)="toggleKeyPanel()">Cancel</button>
+    </form>
+    <p class="key-note">
+      Runs 100% in your browser with no backend server. Your key stays in localStorage on this
+      device.
+    </p>
+  </div>
+}
 
 <main>
   <app-chat />

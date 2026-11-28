@@ -1,6 +1,19 @@
 import { Injectable } from '@angular/core';
+import {
+  BENCHMARKS_DATA,
+  CATEGORY_IDS,
+  isCategory,
+  type Category,
+} from './engine/catalog';
+import { runChat, type Mode } from './engine/chat';
+import { GeminiProvider } from './engine/gemini.provider';
+import { BrowserLearnedStore, BrowserStats, VOTE_DELTA } from './engine/learning';
+import { MockProvider } from './engine/mock.provider';
+import { ProviderError } from './engine/provider';
+import { rankModels, type RankedModel } from './engine/router';
+import { DEFAULT_GEMINI_API_KEY, GEMINI_MODEL } from './gemini.config';
 
-export type Mode = 'mock' | 'openrouter';
+export type { Mode, RankedModel };
 
 export interface Health {
   status: 'ok';
@@ -12,21 +25,13 @@ export interface ChatTurn {
   content: string;
 }
 
-export interface RankedModel {
-  model: string;
-  /** Effective score: base benchmark score + learned adjustment. */
-  score: number;
-  baseScore: number;
-  learnedAdjustment: number;
-}
-
 export interface Routing {
   category: string;
   categoryLabel: string;
   confidence: number;
   language: string;
   reason: string;
-  /** "rules" = keyword rules (mock mode or fallback), "ai" = the AI router. */
+  /** "rules" = keyword rules (mock mode or fallback), "ai" = the Gemini AI router. */
   classifiedBy: 'rules' | 'ai';
   selectedModel: string;
   ranking: RankedModel[];
@@ -38,7 +43,7 @@ export interface ChatResponse {
   answer: string;
   quality: { score: number; verdict: string };
   mode: Mode;
-  /** Set when another model answered in place of the selected one (e.g. a text model for DALL·E). */
+  /** Set when another model answered in place of the selected one (e.g. Gemini for DALL·E). */
   answeredBy?: string;
   timings: { classifyMs: number; answerMs: number; judgeMs: number };
 }
@@ -92,7 +97,7 @@ export interface Stats {
   feedbackCount: number;
 }
 
-/** An error from the Unified AI server, with a machine-readable code. */
+/** An error from the Unified AI pipeline, with a machine-readable code. */
 export class ApiError extends Error {
   constructor(
     readonly code: string,
@@ -103,65 +108,179 @@ export class ApiError extends Error {
   }
 }
 
-const OFFLINE_MESSAGE = "Can't reach the Unified AI server. Start it with `npm start`.";
+const API_KEY_STORAGE = 'unified_ai_gemini_key';
+const MAX_HISTORY_TURNS = 20;
+const MAX_REMEMBERED_MESSAGES = 2_000;
+
+function readSavedKey(): string {
+  try {
+    return typeof localStorage !== 'undefined'
+      ? (localStorage.getItem(API_KEY_STORAGE) ?? '').trim()
+      : '';
+  } catch {
+    return '';
+  }
+}
+
+function saveKey(key: string): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (key) localStorage.setItem(API_KEY_STORAGE, key);
+    else localStorage.removeItem(API_KEY_STORAGE);
+  } catch {
+    // Ignore storage restriction errors; key remains in memory for this session.
+  }
+}
 
 /**
- * Talks to the Unified AI Node server (server/index.ts). In development, /api is
- * proxied there by proxy.conf.json, so API keys never reach the browser.
+ * Runs the entire Unified AI pipeline directly in the browser (no backend server required).
+ * Uses the Gemini API when a key is provided (acting as the unified multi-model router),
+ * and falls back to offline Demo mode otherwise.
  */
 @Injectable({ providedIn: 'root' })
 export class UnifiedAiService {
-  health(): Promise<Health> {
-    return this.request('/api/health');
+  readonly #learned = new BrowserLearnedStore();
+  readonly #stats = new BrowserStats();
+  readonly #mockProvider = new MockProvider();
+  readonly #routed = new Map<string, { category: Category; model: string; voted: boolean }>();
+  #customKey = readSavedKey();
+
+  private activeApiKey(): string {
+    return this.#customKey || DEFAULT_GEMINI_API_KEY.trim();
   }
 
-  /** Runs the whole pipeline (classify → route → answer → judge) and returns everything at once. */
-  chat(message: string, history: ChatTurn[], signal?: AbortSignal): Promise<ChatResponse> {
-    return this.request('/api/chat', { message, history }, signal);
+  currentMode(): Mode {
+    return this.activeApiKey() ? 'gemini' : 'mock';
   }
 
-  feedback(request: FeedbackRequest): Promise<FeedbackResult> {
-    return this.request('/api/feedback', request);
+  hasCustomApiKey(): boolean {
+    return Boolean(this.#customKey);
   }
 
-  getBenchmarks(): Promise<Benchmarks> {
-    return this.request('/api/benchmarks');
+  setApiKey(rawKey: string): Mode {
+    this.#customKey = rawKey.trim();
+    saveKey(this.#customKey);
+    return this.currentMode();
   }
 
-  getStats(): Promise<Stats> {
-    return this.request('/api/stats');
+  clearApiKey(): Mode {
+    this.#customKey = '';
+    saveKey('');
+    return this.currentMode();
   }
 
-  /** Clears stats and learned adjustments on the server. */
-  reset(): Promise<{ status: 'ok' }> {
-    return this.request('/api/reset', {});
+  async health(): Promise<Health> {
+    return { status: 'ok', mode: this.currentMode() };
   }
 
-  /** GET without a body, POST with one. Throws ApiError, or the AbortError when `signal` aborts. */
-  private async request<T>(url: string, body?: unknown, signal?: AbortSignal): Promise<T> {
-    let res: Response;
+  /** Runs the full pipeline (classify → route → answer → judge) in the browser. */
+  async chat(message: string, history: ChatTurn[], signal?: AbortSignal): Promise<ChatResponse> {
+    const trimmed = message.trim();
+    if (!trimmed) throw new ApiError('bad_request', 'Send a non-empty message.');
+
+    const recentHistory = history
+      .filter((t) => (t.role === 'user' || t.role === 'assistant') && t.content.trim())
+      .slice(-MAX_HISTORY_TURNS);
+    const firstUser = recentHistory.findIndex((t) => t.role === 'user');
+    const cleanHistory = firstUser < 0 ? [] : recentHistory.slice(firstUser);
+
+    const apiKey = this.activeApiKey();
+    const mode: Mode = apiKey ? 'gemini' : 'mock';
+    const provider = apiKey ? new GeminiProvider({ apiKey }) : this.#mockProvider;
+
     try {
-      res = await fetch(
-        url,
-        body === undefined
-          ? { signal }
-          : {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
-              signal,
-            },
+      const result = await runChat(
+        {
+          mode,
+          provider,
+          geminiModel: GEMINI_MODEL,
+          benchmarks: BENCHMARKS_DATA,
+          learned: this.#learned,
+        },
+        trimmed,
+        cleanHistory,
+        signal,
       );
+      this.#stats.recordChat(result.routing.selectedModel, result.quality.score);
+      this.remember(result.id, result.routing.category, result.routing.selectedModel);
+      return result;
     } catch (err) {
-      if ((err as Error).name === 'AbortError') throw err;
-      throw new ApiError('offline', OFFLINE_MESSAGE);
+      if ((err as Error).name === 'AbortError' || signal?.aborted) throw err;
+      if (err instanceof ProviderError) throw new ApiError(err.code, err.message);
+      throw new ApiError('internal', (err as Error).message || 'Unexpected error.');
+    }
+  }
+
+  async feedback(request: FeedbackRequest): Promise<FeedbackResult> {
+    const known = this.#routed.get(request.messageId);
+    if (known?.voted) {
+      throw new ApiError('already_voted', 'This answer already has a vote.');
+    }
+    const cat = known?.category ?? request.category;
+    const mdl = known?.model ?? request.model;
+    if (
+      !isCategory(cat) ||
+      typeof mdl !== 'string' ||
+      BENCHMARKS_DATA.categories[cat].scores[mdl] === undefined
+    ) {
+      throw new ApiError('bad_request', 'Unknown category, or that model has no score for it.');
     }
 
-    const data = (await res.json().catch(() => null)) as
-      (T & { code?: string; message?: string }) | null;
-    if (res.ok && data) return data;
-    if (data?.code) throw new ApiError(data.code, data.message ?? 'Request failed.');
-    // No JSON error body: usually the dev-server proxy reporting that the API server is down.
-    throw new ApiError('offline', OFFLINE_MESSAGE);
+    const base = BENCHMARKS_DATA.categories[cat].scores[mdl];
+    const { before, after, adjustment } = this.#learned.apply(
+      cat,
+      mdl,
+      request.vote > 0 ? VOTE_DELTA.up : VOTE_DELTA.down,
+      base,
+    );
+    if (known) known.voted = true;
+    this.#stats.recordFeedback();
+    return { category: cat, model: mdl, before, after, learnedAdjustment: adjustment };
+  }
+
+  async getBenchmarks(): Promise<Benchmarks> {
+    const categories = Object.fromEntries(
+      CATEGORY_IDS.map((id) => {
+        const { label, short, scores } = BENCHMARKS_DATA.categories[id];
+        const ranking = rankModels(BENCHMARKS_DATA, id, this.#learned);
+        return [
+          id,
+          {
+            label,
+            short,
+            scores,
+            effective: Object.fromEntries(ranking.map((r) => [r.model, r.score])),
+            adjustments: Object.fromEntries(
+              ranking.filter((r) => r.learnedAdjustment).map((r) => [r.model, r.learnedAdjustment]),
+            ),
+            best: ranking[0].model,
+            ranking,
+          },
+        ];
+      }),
+    );
+    return {
+      models: BENCHMARKS_DATA.models,
+      categories,
+      source: BENCHMARKS_DATA.source,
+    };
+  }
+
+  async getStats(): Promise<Stats> {
+    return this.#stats.snapshot();
+  }
+
+  async reset(): Promise<{ status: 'ok' }> {
+    this.#stats.reset();
+    this.#learned.reset();
+    this.#routed.clear();
+    return { status: 'ok' };
+  }
+
+  private remember(id: string, category: Category, model: string): void {
+    this.#routed.set(id, { category, model, voted: false });
+    if (this.#routed.size > MAX_REMEMBERED_MESSAGES) {
+      this.#routed.delete(this.#routed.keys().next().value!);
+    }
   }
 }
